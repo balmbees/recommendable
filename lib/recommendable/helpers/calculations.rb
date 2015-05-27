@@ -162,6 +162,63 @@ module Recommendable
           true
         end
 
+        def update_other_recommendations_for(user_id)
+          user_id = user_id.to_s
+
+          nearest_neighbors = Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count
+          Recommendable.config.ratable_classes.each do |klass|
+            rated_sets = [
+              Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id)
+            ]
+            temp_set = Recommendable::Helpers::RedisKeyMapper.temp_set_for(Recommendable.config.user_class, user_id)
+            similarity_set  = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
+            recommended_2_set = Recommendable::Helpers::RedisKeyMapper.recommended_2_set_for(klass, user_id)
+            recommended_3_set = Recommendable::Helpers::RedisKeyMapper.recommended_3_set_for(klass, user_id)
+            most_similar_user_ids, least_similar_user_ids = Recommendable.redis.pipelined do
+              Recommendable.redis.zrevrange(similarity_set, 0, nearest_neighbors - 1)
+              Recommendable.redis.zrange(similarity_set, 0, nearest_neighbors - 1)
+            end
+
+            # Get likes from the most similar users
+            sets_to_union = most_similar_user_ids.inject([]) do |sets, id|
+              sets << Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, id)
+            end
+
+            # Get dislikes from the least similar users
+            sets_to_union = least_similar_user_ids.inject(sets_to_union) do |sets, id|
+              sets << Recommendable::Helpers::RedisKeyMapper.disliked_set_for(klass, id)
+            end
+
+            return if sets_to_union.empty?
+
+            # SDIFF rated items so they aren't recommended
+            Recommendable.redis.sunionstore(temp_set, *sets_to_union)
+            item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
+
+            scores_2 = item_ids.map { |id| [predict_2_for(user_id, klass, id), id] }
+            Recommendable.redis.pipelined do
+              scores_2.each do |s|
+                Recommendable.redis.zadd(recommended_2_set, s[0], s[1])
+              end
+            end
+            scores_3 = item_ids.map { |id| [predict_3_for(user_id, klass, id, nearest_neighbors: nearest_neighbors, total_user_count: total_user_count), id] }
+            Recommendable.redis.pipelined do
+              scores_3.each do |s|
+                Recommendable.redis.zadd(recommended_3_set, s[0], s[1])
+              end
+            end
+
+            Recommendable.redis.del(temp_set)
+
+            if number_recommendations = Recommendable.config.recommendations_to_store
+              length = Recommendable.redis.zcard(recommended_set)
+              Recommendable.redis.zremrangebyrank(recommended_set, 0, length - number_recommendations - 1)
+            end
+          end
+
+          true
+        end
+
         # Predict how likely it is that a user will like an item. This probability
         # is not based on percentage. 0.0 indicates that the user will neither like
         # nor dislike the item. Values that approach Infinity indicate a rising
@@ -189,6 +246,39 @@ module Recommendable
           end
           prediction = similarity_sum / (liked_by_count + disliked_by_count).to_f
           prediction.finite? ? prediction : 0.0
+        end
+
+        def predict_2_for(user_id, klass, item_id)
+          user_id = user_id.to_s
+          item_id = item_id.to_s
+
+          liked_by_set = Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(klass, item_id)
+          disliked_by_set = Recommendable::Helpers::RedisKeyMapper.disliked_by_set_for(klass, item_id)
+          similarity_sum = 0.0
+
+          similarity_sum += similarity_total_for(user_id, liked_by_set)
+          similarity_sum -= similarity_total_for(user_id, disliked_by_set)
+
+          prediction_2 = similarity_sum
+          prediction_2.finite? ? prediction_2 : 0.0
+        end
+
+        def predict_3_for(user_id, klass, item_id, options)
+          user_id = user_id.to_s
+          item_id = item_id.to_s
+          nearest_neighbors = options[:nearest_neighbors]
+          total_user_count = options[:total_user_count]
+
+          liked_by_set = Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(klass, item_id)
+          disliked_by_set = Recommendable::Helpers::RedisKeyMapper.disliked_by_set_for(klass, item_id)
+          similarity_sum = 0.0
+
+          similarity_sum += similarity_total_for(user_id, liked_by_set)
+
+          liked_by_count = Recommendable.redis.scard(liked_by_set)
+
+          prediction_3 = similarity_sum * (similarity_sum / nearest_neighbors - liked_by_count / total_user_count)
+          prediction_3.finite? ? prediction_3 : 0.0
         end
 
         def similarity_total_for(user_id, set)
