@@ -162,7 +162,7 @@ module Recommendable
           true
         end
 
-        def update_other_recommendations_for(user_id)
+        def update_other_recommendations_for(user_id, total_user_count)
           user_id = user_id.to_s
 
           nearest_neighbors = Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count
@@ -277,7 +277,7 @@ module Recommendable
 
           liked_by_count = Recommendable.redis.scard(liked_by_set)
 
-          prediction_3 = similarity_sum * (similarity_sum / nearest_neighbors - liked_by_count / total_user_count)
+          prediction_3 = similarity_sum * (similarity_sum / nearest_neighbors.to_f - liked_by_count / total_user_count.to_f)
           prediction_3.finite? ? prediction_3 : 0.0
         end
 
