@@ -211,8 +211,10 @@ module Recommendable
             Recommendable.redis.del(temp_set)
 
             if number_recommendations = Recommendable.config.recommendations_to_store
-              length = Recommendable.redis.zcard(recommended_set)
-              Recommendable.redis.zremrangebyrank(recommended_set, 0, length - number_recommendations - 1)
+              length = Recommendable.redis.zcard(recommended_2_set)
+              Recommendable.redis.zremrangebyrank(recommended_2_set, 0, length - number_recommendations - 1)
+              length = Recommendable.redis.zcard(recommended_3_set)
+              Recommendable.redis.zremrangebyrank(recommended_3_set, 0, length - number_recommendations - 1)
             end
           end
 
