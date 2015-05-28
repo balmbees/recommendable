@@ -2,7 +2,7 @@ module Recommendable
   module Helpers
     module RedisKeyMapper
       class << self
-        %w[liked disliked hidden bookmarked recommended recommended_2 recommended_3].each do |action|
+        %w[liked disliked hidden bookmarked recommended recommended_2 recommended_3 recommended_4].each do |action|
           define_method "#{action}_set_for" do |klass, id|
             [redis_namespace, user_namespace, id, "#{action}_#{ratable_namespace(klass)}"].compact.join(':')
           end
