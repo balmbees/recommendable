@@ -350,7 +350,7 @@ module Recommendable
 
           p = similarity_sum
           n = liked_by_count
-          prediction_4 = ((p/n) + (1.9208/n) - 1.96 * sqrt((((p/n) * (1-(p/n)) + 0.9604)) / n)) / (1+3.8416 / n)
+          prediction_4 = ((p/n) + (1.9208/n) - 1.96 * Math.sqrt((((p/n) * (1-(p/n)) + 0.9604)) / n)) / (1+3.8416 / n)
           prediction_4.finite? ? prediction_4 : 0.0
         end
 
