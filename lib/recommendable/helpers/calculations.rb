@@ -230,7 +230,7 @@ module Recommendable
           true
         end
 
-        def update_4_recommendations_for(user_id, total_user_count)
+        def update_4_recommendations_for(user_id)
           user_id = user_id.to_s
 
           nearest_neighbors = Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count
