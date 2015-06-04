@@ -106,64 +106,80 @@ module Recommendable
           true
         end
 
-        def similarity_keys(klass, user_id, other_user_id)
-          user_id = user_id.to_s
-          other_user_id = other_user_id.to_s
-
-          [ Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
-            Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, other_user_id),
-            Recommendable::Helpers::RedisKeyMapper.disliked_set_for(klass, user_id),
-            Recommendable::Helpers::RedisKeyMapper.disliked_set_for(klass, other_user_id),
-            Recommendable::Helpers::RedisKeyMapper.temp0_set_for(klass, user_id, other_user_id),
-            Recommendable::Helpers::RedisKeyMapper.temp1_set_for(klass, user_id, other_user_id),
-            Recommendable::Helpers::RedisKeyMapper.temp2_set_for(klass, user_id, other_user_id),
-            Recommendable::Helpers::RedisKeyMapper.temp3_set_for(klass, user_id, other_user_id) ]
-        end
-
         def similarity_between_lua
           <<-LUA
-          local similarity_set     = KEYS[1]
+          local user_id = KEYS[1]
+          local other_user_id = KEYS[2]
+          if other_user_id == '-' then
+            other_user_id = id
+          end
+          local similarity_set = KEYS[3]
+          local redis_namespace = KEYS[4]
+          local user_namespace = KEYS[5]
 
-          local liked_set          = ARGV[1]
-          local other_liked_set    = ARGV[2]
-          local disliked_set       = ARGV[3]
-          local other_disliked_set = ARGV[4]
+          local similarity = 0
+          local liked_count = 0
+          local disliked_count = 0
 
-          local temp0_set = ARGV[5]
-          local temp1_set = ARGV[6]
-          local temp2_set = ARGV[7]
-          local temp3_set = ARGV[8]
+          for i=1, #ARGV do
+            local klass = ARGV[i]
 
-          local similarity0 = redis.call('SINTERSTORE', temp0_set, liked_set, other_liked_set)
-          local similarity1 = redis.call('SINTERSTORE', temp1_set, disliked_set, other_disliked_set)
-          local similarity2 = redis.call('SINTERSTORE', temp2_set, liked_set, other_disliked_set)
-          local similarity3 = redis.call('SINTERSTORE', temp3_set, disliked_set, other_liked_set)
+            local liked_set          = table.concat({redis_namespace, user_namespace, user_id, 'liked_'..klass}, ':')
+            local other_liked_set    = table.concat({redis_namespace, user_namespace, other_user_id, 'liked_'..klass}, ':')
+            local disliked_set       = table.concat({redis_namespace, user_namespace, user_id, 'disliked_'..klass}, ':')
+            local other_disliked_set = table.concat({redis_namespace, user_namespace, other_user_id, 'disliked_'..klass}, ':')
 
-          local similarity = similarity0 + similarity1 - similarity2 - similarity3
+            local temp0_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp0'}, ':')
+            local temp1_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp1'}, ':')
+            local temp2_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp2'}, ':')
+            local temp3_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp3'}, ':')
 
-          redis.call('DEL', temp0_set)
-          redis.call('DEL', temp1_set)
-          redis.call('DEL', temp2_set)
-          redis.call('DEL', temp3_set)
+            local similarity0 = redis.call('SINTERSTORE', temp0_set, liked_set, other_liked_set)
+            local similarity1 = redis.call('SINTERSTORE', temp1_set, disliked_set, other_disliked_set)
+            local similarity2 = redis.call('SINTERSTORE', temp2_set, liked_set, other_disliked_set)
+            local similarity3 = redis.call('SINTERSTORE', temp3_set, disliked_set, other_liked_set)
 
-          local liked_count = redis.call('SCARD', liked_set)
-          local disliked_count = redis.call('SCARD', disliked_set)
+            similarity = similarity + similarity0 + similarity1 - similarity2 - similarity3
 
-          return {similarity, liked_count, disliked_count}
+            redis.call('DEL', temp0_set)
+            redis.call('DEL', temp1_set)
+            redis.call('DEL', temp2_set)
+            redis.call('DEL', temp3_set)
+
+            liked_count = liked_count + redis.call('SCARD', liked_set)
+            disliked_count = disliked_count + redis.call('SCARD', disliked_set)
+          end
+
+          local similarity_value = ((liked_count + disliked_count) > 0) and similarity / (liked_count + disliked_count) or 0.0
+          redis.call('SET', 'DEBUG1', similarity_value)
+          return tostring(similarity_value)
+          LUA
+        end
+
+        def similarity_between_zadd_lua
+          <<-LUA
+          local function similarity_between(id)
+            #{similarity_between_lua}
+          end
+
+          local user_id = KEYS[1]
+          local similarity_set = KEYS[3]
+          local other_user_ids = redis.call('SMEMBERS', KEYS[6])
+
+          for i=1, #other_user_ids do
+            if user_id ~= other_user_ids[i] then
+              redis.call('ZADD', similarity_set, similarity_between(other_user_ids[i]), other_user_ids[i])
+            end
+          end
           LUA
         end
 
         def similarity_between(user_id, other_user_id)
           similarity_set  = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
-          t = Recommendable.config.ratable_classes.map do |klass|
-            Recommendable.redis.eval(similarity_between_lua,
-                                    [similarity_set],
-                                    similarity_keys(klass, user_id, other_user_id))
-          end.transpose
-          similarity = t[0].reduce(:+)
-          liked_count = t[1].reduce(:+)
-          disliked_count = t[2].reduce(:+)
-          similarity / (liked_count + disliked_count).to_f
+          Recommendable.redis.eval(similarity_between_lua,
+            [ user_id, other_user_id, similarity_set,
+              Recommendable.config.redis_namespace, Recommendable.config.user_class.to_s.tableize ],
+            Recommendable.config.ratable_classes.map { |klass| klass.to_s.tableize }).to_f
         end
 
         def update_similarities_for(user_id)
@@ -172,17 +188,17 @@ module Recommendable
 
           # Only calculate similarities for users who have rated the items that
           # this user has rated
-          relevant_user_ids = Recommendable.config.ratable_classes.inject([]) do |memo, klass|
+          temp_set = Recommendable::Helpers::RedisKeyMapper.temp_set_for(Recommendable.config.user_class, user_id)
+          Recommendable.config.ratable_classes.each do |klass|
             liked_set = Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id)
             disliked_set = Recommendable::Helpers::RedisKeyMapper.disliked_set_for(klass, user_id)
             temp_klass_set = Recommendable::Helpers::RedisKeyMapper.temp_set_for(klass, user_id)
             item_count = Recommendable.redis.sunionstore(temp_klass_set, liked_set, disliked_set)
 
             if item_count > 0
-              memo | Recommendable.redis.eval(sunion_sets_lua,
-                                              argv: [temp_klass_set, Recommendable.config.redis_namespace, klass.to_s.tableize])
-            else
-              memo
+              Recommendable.redis.eval(sunion_sets_lua,
+                                      [temp_set],
+                                      [temp_klass_set, Recommendable.config.redis_namespace, klass.to_s.tableize])
             end
           end
 
@@ -192,13 +208,23 @@ module Recommendable
             end
           end
 
-          similarity_values = relevant_user_ids.map { |id| similarity_between(user_id, id) }
-          Recommendable.redis.pipelined do
-            relevant_user_ids.zip(similarity_values).each do |id, similarity_value|
-              next if id == user_id # Skip comparing with self.
-              Recommendable.redis.zadd(similarity_set, similarity_value, id)
-            end
+          temp_sub_set = Recommendable::Helpers::RedisKeyMapper.temp_sub_set_for(Recommendable.config.user_class, user_id)
+          similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
+          cursor = 0
+          loop do
+            cursor, keys = Recommendable.redis.sscan(temp_set, cursor)
+            Recommendable.redis.sadd temp_sub_set, keys
+            Recommendable.redis.eval(similarity_between_zadd_lua,
+              [ user_id, '-', similarity_set,
+                Recommendable.config.redis_namespace, Recommendable.config.user_class.to_s.tableize,
+                temp_sub_set],
+              Recommendable.config.ratable_classes.map { |klass| klass.to_s.tableize })
+
+            Recommendable.redis.del temp_sub_set
+            break if cursor == '0'
           end
+
+          Recommendable.redis.del temp_set
 
           if knn = Recommendable.config.nearest_neighbors
             length = Recommendable.redis.zcard(similarity_set)
@@ -220,7 +246,7 @@ module Recommendable
             table.insert(sets, table.concat({ARGV[2], ARGV[3], item_ids[i], 'disliked_by'}, ':'))
           end
 
-          return redis.call('SUNION', unpack(sets))
+          redis.call('SUNIONSTORE', KEYS[1], KEYS[1], unpack(sets))
           LUA
         end
 
@@ -474,7 +500,7 @@ module Recommendable
 
         def sum_of_scores_lua
           <<-LUA
-          local sum=0
+          local sum=0.0
           local z=redis.call('ZRANGE', KEYS[2], 0, -1, 'WITHSCORES')
 
           for i=1, #z, 2 do
@@ -483,7 +509,7 @@ module Recommendable
             end
           end
 
-          return sum
+          return tostring(sum)
           LUA
         end
 
