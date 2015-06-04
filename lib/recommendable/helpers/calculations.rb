@@ -212,7 +212,7 @@ module Recommendable
           similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
           cursor = 0
           loop do
-            cursor, keys = Recommendable.redis.sscan(temp_set, cursor)
+            cursor, keys = Recommendable.redis.sscan(temp_set, cursor, count: 300)
             Recommendable.redis.sadd temp_sub_set, keys
             Recommendable.redis.eval(similarity_between_zadd_lua,
               [ user_id, '-', similarity_set,
