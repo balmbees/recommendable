@@ -565,7 +565,7 @@ module Recommendable
             local ids = redis.call('SMEMBERS', set)
             local similarity_values = {}
             for i=1, #ids do
-              sum = sum + tonumber(redis.call('ZSCORE', similarity_set, ids[i]))
+              sum = sum + (tonumber(redis.call('ZSCORE', similarity_set, ids[i])) or 0)
             end
 
             return sum
