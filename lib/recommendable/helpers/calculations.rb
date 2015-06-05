@@ -300,7 +300,7 @@ module Recommendable
             Recommendable.redis.sdiffstore(temp_set, temp_set, *rated_sets)
 
             temp_sub_set = Recommendable::Helpers::RedisKeyMapper.temp_sub_set_for(Recommendable.config.user_class, user_id)
-            scan_slice(user_id, temp_set, temp_sub_set, count: 300) do
+            scan_slice(user_id, temp_set, temp_sub_set, count: 5) do
               Recommendable.redis.eval(predict_multi_for_lua('((liked_by_count + disliked_by_count) > 0) and similarity_sum / (liked_by_count + disliked_by_count) or 0'),
                 [temp_sub_set, recommended_set],
                 [user_id, klass.to_s.tableize, Recommendable.config.redis_namespace, Recommendable.config.user_class.to_s.tableize])
