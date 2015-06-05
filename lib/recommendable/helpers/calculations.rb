@@ -108,6 +108,35 @@ module Recommendable
 
         def similarity_between_lua_func
           <<-LUA
+          local function count_intersect(set1, set2)
+            local set1_n = table.getn(set1)
+            table.sort(set1)
+            local set2_n = table.getn(set2)
+            table.sort(set2)
+
+            local i1 = 1
+            local i2 = 1
+            local cnt = 0
+
+            while i1 <= set1_n and i2 <= set2_n do
+              redis.call("set","DEBUG_asdf:set1", set1[i1])
+              redis.call("set","DEBUG_asdf:set2", set2[i2])
+
+              if set1[i1] == set2[i2] then
+                cnt = cnt+1
+                i1 = i1+1
+                i2 = i2+1
+              elseif set1[i1] > set2[i2] then
+                i2 = i2+1
+              else
+                i1 = i1+1
+              end
+            end
+            redis.call("set", "DEBUG_asdf::result", cnt)
+
+            return cnt
+          end
+
           local function similarity_between(klasses, user_id, other_user_id, similarity_set, redis_namespace, user_namespace)
             local similarity = 0
             local liked_count = 0
@@ -121,22 +150,19 @@ module Recommendable
               local disliked_set       = table.concat({redis_namespace, user_namespace, user_id, 'disliked_'..klass}, ':')
               local other_disliked_set = table.concat({redis_namespace, user_namespace, other_user_id, 'disliked_'..klass}, ':')
 
-              local temp0_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp0'}, ':')
-              local temp1_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp1'}, ':')
-              local temp2_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp2'}, ':')
-              local temp3_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp3'}, ':')
+              local liked_set_table = redis.call('SMEMBERS', liked_set)
+              local other_liked_set_table = redis.call('SMEMBERS', other_liked_set)
+              local disliked_set_table = redis.call('SMEMBERS', disliked_set)
+              local other_disliked_set_table = redis.call('SMEMBERS', other_disliked_set)
 
-              local similarity0 = redis.call('SINTERSTORE', temp0_set, liked_set, other_liked_set)
-              local similarity1 = redis.call('SINTERSTORE', temp1_set, disliked_set, other_disliked_set)
-              local similarity2 = redis.call('SINTERSTORE', temp2_set, liked_set, other_disliked_set)
-              local similarity3 = redis.call('SINTERSTORE', temp3_set, disliked_set, other_liked_set)
+              local temp0_set = table.concat({redis_namespace, klass, user_id, other_user_id, 'temp0'}, ':')
+
+              local similarity0 = count_intersect(liked_set_table, other_liked_set_table)
+              local similarity1 = count_intersect(disliked_set_table, other_disliked_set_table)
+              local similarity2 = count_intersect(liked_set_table, other_disliked_set_table)
+              local similarity3 = count_intersect(disliked_set_table, other_liked_set_table)
 
               similarity = similarity + similarity0 + similarity1 - similarity2 - similarity3
-
-              redis.call('DEL', temp0_set)
-              redis.call('DEL', temp1_set)
-              redis.call('DEL', temp2_set)
-              redis.call('DEL', temp3_set)
 
               liked_count = liked_count + redis.call('SCARD', liked_set)
               disliked_count = disliked_count + redis.call('SCARD', disliked_set)
