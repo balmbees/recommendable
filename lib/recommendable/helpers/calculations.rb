@@ -489,27 +489,22 @@ module Recommendable
         end
 
         def similarity_total_for_lua_func
-        #   <<-LUA
-        #   local function similarity_total_for(set, similarity_set)
-        #     local sum=0.0
-        #     local z=redis.call('ZRANGE', similarity_set, 0, -1, 'WITHSCORES')
-        #
-        #     for i=1, #z, 2 do
-        #       if redis.call('SISMEMBER', set, z[i]) == 1 then
-        #         sum=sum+z[i+1]
-        #       end
-        #     end
-        #
-        #     return sum
-        #   end
-        #   LUA
           <<-LUA
           local function similarity_total_for(set, similarity_set)
             local sum=0.0
-            local ids = redis.call('SMEMBERS', set)
-            local similarity_values = {}
-            for i=1, #ids do
-              sum = sum + (tonumber(redis.call('ZSCORE', similarity_set, ids[i])) or 0)
+            if tonumber(redis.call('ZCARD', similarity_set)) < tonumber(redis.call('SCARD', set)) then
+              local z=redis.call('ZRANGE', similarity_set, 0, -1, 'WITHSCORES')
+              for i=1, #z, 2 do
+                if redis.call('SISMEMBER', set, z[i]) == 1 then
+                  sum=sum+z[i+1]
+                end
+              end
+            else
+              local ids = redis.call('SMEMBERS', set)
+              local similarity_values = {}
+              for i=1, #ids do
+                sum = sum + (tonumber(redis.call('ZSCORE', similarity_set, ids[i])) or 0)
+              end
             end
 
             return sum
