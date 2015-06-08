@@ -376,7 +376,7 @@ module Recommendable
             # SDIFF rated items so they aren't recommended
             Recommendable.redis.sunionstore(temp_set, *sets_to_union)
             item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
-            liked_by_count = Recommendable.redis.scard(liked_by_set)
+            liked_by_count = Recommendable.redis.scard(Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(klass, item_id))
 
             item_ids.each do |id|
               Recommendable.redis.eval(predict_multi_for_lua('similarity_sum'),
@@ -445,7 +445,7 @@ module Recommendable
             # SDIFF rated items so they aren't recommended
             Recommendable.redis.sunionstore(temp_set, *sets_to_union)
             item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
-            liked_by_count = Recommendable.redis.scard(liked_by_set)
+            liked_by_count = Recommendable.redis.scard(Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(klass, item_id))
 
             item_ids.each do |id|
               Recommendable.redis.eval(predict_for_lua("((similarity_sum/#{liked_by_count}) + (1.9208/#{liked_by_count}) - 1.96 * Math.sqrt((((similarity_sum/#{liked_by_count}) * (1-(similarity_sum/#{liked_by_count})) + 0.9604)) / #{liked_by_count})) / (1+3.8416 / #{liked_by_count})"),
