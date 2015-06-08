@@ -64,6 +64,12 @@ class CalculationsTest < Minitest::Test
     assert_equal Recommendable::Helpers::Calculations.predict_for(@user.id, @movie10.class, @movie10.id), 1.0
   end
 
+  def test_update_other_recommendations
+    Recommendable::Helpers::Calculations.update_similarities_for(@user.id)
+    Recommendable::Helpers::Calculations.update_other_recommendations_for(@user.id, 5)
+    # Recommendable::Helpers::Calculations.update_4_recommendations_for(@user.id)
+  end
+
   def teardown
     Recommendable.redis.flushdb
   end
