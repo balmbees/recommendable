@@ -379,14 +379,13 @@ module Recommendable
             item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
 
             item_ids.each do |id|
-              liked_by_count = Recommendable.redis.scard(Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(klass, id))
               Recommendable.redis.eval(predict_for_lua('similarity_sum'),
                 [ temp_set, recommended_2_set ],
                 [ user_id, id,
                   Recommendable.config.redis_namespace,
                   Recommendable.config.user_class.to_s.tableize,
                   klass.to_s.tableize ])
-              Recommendable.redis.eval(predict_for_lua("similarity_sum * (similarity_sum / #{nearest_neighbors} - #{liked_by_count} / #{total_user_count})"),
+              Recommendable.redis.eval(predict_for_lua("similarity_sum * (similarity_sum / #{nearest_neighbors} - liked_by_count / #{total_user_count})"),
                 [ temp_set, recommended_3_set ],
                 [ user_id, id,
                   Recommendable.config.redis_namespace,
@@ -440,8 +439,7 @@ module Recommendable
             item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
 
             item_ids.each do |id|
-              liked_by_count = Recommendable.redis.scard(Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(klass, id))
-              Recommendable.redis.eval(predict_for_lua("(#{liked_by_count} > 0) and (((similarity_sum/#{liked_by_count}) + (1.9208/#{liked_by_count}) - 1.96 * math.sqrt((((similarity_sum/#{liked_by_count}) * (1-(similarity_sum/#{liked_by_count})) + 0.9604)) / #{liked_by_count})) / (1+3.8416 / #{liked_by_count})) or 0"),
+              Recommendable.redis.eval(predict_for_lua('(liked_by_count > 0) and (((similarity_sum/liked_by_count) + (1.9208/liked_by_count) - 1.96 * math.sqrt((((similarity_sum/liked_by_count) * (1-(similarity_sum/liked_by_count)) + 0.9604)) / liked_by_count)) / (1+3.8416 / liked_by_count)) or 0'),
                 [ temp_set, recommended_4_set ],
                 [ user_id, id,
                   Recommendable.config.redis_namespace,
