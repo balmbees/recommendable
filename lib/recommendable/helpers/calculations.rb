@@ -207,7 +207,7 @@ module Recommendable
           temp_sub_set = Recommendable::Helpers::RedisKeyMapper.temp_sub_set_for(Recommendable.config.user_class, user_id)
           similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
           klasses = Recommendable.config.ratable_classes.map { |klass| klass.to_s.tableize }
-          scan_slice(user_id, temp_set, temp_sub_set, count: 300) do
+          scan_slice(temp_set, temp_sub_set, count: 100) do
             Recommendable.redis.eval(similarity_between_multi_zadd_lua,
               [ user_id, temp_sub_set, similarity_set,
                 Recommendable.config.redis_namespace,
@@ -227,7 +227,7 @@ module Recommendable
           true
         end
 
-        def scan_slice(user_id, set, sub_set, options={})
+        def scan_slice(set, sub_set, options={})
           cursor = 0
           loop do
             cursor, keys = Recommendable.redis.sscan(set, cursor, options)
@@ -291,12 +291,14 @@ module Recommendable
 
             # SDIFF rated items so they aren't recommended
             Recommendable.redis.sunionstore(temp_set, *sets_to_union)
-            item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
+            Recommendable.redis.sdiffstore(temp_set, temp_set, *rated_sets)
 
-            item_ids.each do |id|
-              Recommendable.redis.eval(predict_for_lua('((liked_by_count + disliked_by_count) > 0) and similarity_sum / (liked_by_count + disliked_by_count) or 0'),
-                [ temp_set, recommended_set ],
-                [ user_id, id,
+            temp_sub_set = Recommendable::Helpers::RedisKeyMapper.temp_sub_set_for(Recommendable.config.user_class, user_id)
+            scan_slice(temp_set, temp_sub_set, count: 10) do
+              Recommendable.redis.eval(predict_multi_for_lua('((liked_by_count + disliked_by_count) > 0) and similarity_sum / (liked_by_count + disliked_by_count) or 0'),
+                [ recommended_set ],
+                [ user_id,
+                  temp_sub_set,
                   Recommendable.config.redis_namespace,
                   Recommendable.config.user_class.to_s.tableize,
                   klass.to_s.tableize ])
@@ -313,34 +315,35 @@ module Recommendable
           true
         end
 
-        def predict_for_lua(predict_function)
+        def predict_multi_for_lua(predict_function)
           <<-LUA
           #{similarity_total_for_lua_func}
 
-          local temp_set = KEYS[1]
-          local recommended_set = KEYS[2]
+          local recommended_set = KEYS[1]
 
           local user_id = ARGV[1]
-          local item_id = ARGV[2]
+          local item_ids = redis.call('SMEMBERS', ARGV[2])
           local redis_namespace = ARGV[3]
           local user_namespace = ARGV[4]
           local klass = ARGV[5]
 
-          local liked_by_set = table.concat({redis_namespace, klass, item_id, 'liked_by'}, ':')
-          local disliked_by_set = table.concat({redis_namespace, klass, item_id, 'disliked_by'}, ':')
-          local similarity_set = table.concat({redis_namespace, user_namespace, user_id, 'similarities'}, ':')
-          local similarity_sum = 0.0
+          for i=1, #item_ids do
+            local item_id = item_ids[i]
+            local liked_by_set = table.concat({redis_namespace, klass, item_id, 'liked_by'}, ':')
+            local disliked_by_set = table.concat({redis_namespace, klass, item_id, 'disliked_by'}, ':')
+            local similarity_set = table.concat({redis_namespace, user_namespace, user_id, 'similarities'}, ':')
+            local similarity_sum = 0.0
 
-          similarity_sum = similarity_sum + similarity_total_for(liked_by_set, similarity_set)
-          similarity_sum = similarity_sum - similarity_total_for(disliked_by_set, similarity_set)
+            similarity_sum = similarity_sum + similarity_total_for(liked_by_set, similarity_set)
+            similarity_sum = similarity_sum - similarity_total_for(disliked_by_set, similarity_set)
 
-          local liked_by_count = redis.call('SCARD', liked_by_set)
-          local disliked_by_count = redis.call('SCARD', disliked_by_set)
+            local liked_by_count = redis.call('SCARD', liked_by_set)
+            local disliked_by_count = redis.call('SCARD', disliked_by_set)
 
-          local prediction = #{predict_function}
+            local prediction = #{predict_function}
 
-          redis.call('ZADD', recommended_set, prediction, item_id)
-          return prediction
+            redis.call('ZADD', recommended_set, prediction, item_id)
+          end
           LUA
         end
 
@@ -356,7 +359,6 @@ module Recommendable
             similarity_set  = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
             recommended_2_set = Recommendable::Helpers::RedisKeyMapper.recommended_2_set_for(klass, user_id)
             recommended_3_set = Recommendable::Helpers::RedisKeyMapper.recommended_3_set_for(klass, user_id)
-            recommended_4_set = Recommendable::Helpers::RedisKeyMapper.recommended_4_set_for(klass, user_id)
             most_similar_user_ids, least_similar_user_ids = Recommendable.redis.pipelined do
               Recommendable.redis.zrevrange(similarity_set, 0, nearest_neighbors - 1)
               Recommendable.redis.zrange(similarity_set, 0, nearest_neighbors - 1)
@@ -376,18 +378,19 @@ module Recommendable
 
             # SDIFF rated items so they aren't recommended
             Recommendable.redis.sunionstore(temp_set, *sets_to_union)
-            item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
+            Recommendable.redis.sdiffstore(temp_set, temp_set, *rated_sets)
 
-            item_ids.each do |id|
-              Recommendable.redis.eval(predict_for_lua('similarity_sum'),
-                [ temp_set, recommended_2_set ],
-                [ user_id, id,
+            temp_sub_set = Recommendable::Helpers::RedisKeyMapper.temp_sub_set_for(Recommendable.config.user_class, user_id)
+            scan_slice(temp_set, temp_sub_set, count: 10) do
+              Recommendable.redis.eval(predict_multi_for_lua('similarity_sum'),
+                [ recommended_2_set ],
+                [ user_id, temp_sub_set,
                   Recommendable.config.redis_namespace,
                   Recommendable.config.user_class.to_s.tableize,
                   klass.to_s.tableize ])
-              Recommendable.redis.eval(predict_for_lua("similarity_sum * (similarity_sum / #{nearest_neighbors} - liked_by_count / #{total_user_count})"),
-                [ temp_set, recommended_3_set ],
-                [ user_id, id,
+              Recommendable.redis.eval(predict_multi_for_lua("similarity_sum * (similarity_sum / #{nearest_neighbors} - liked_by_count / #{total_user_count})"),
+                [ recommended_3_set ],
+                [ user_id, temp_sub_set,
                   Recommendable.config.redis_namespace,
                   Recommendable.config.user_class.to_s.tableize,
                   klass.to_s.tableize ])
@@ -436,12 +439,13 @@ module Recommendable
 
             # SDIFF rated items so they aren't recommended
             Recommendable.redis.sunionstore(temp_set, *sets_to_union)
-            item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
+            Recommendable.redis.sdiffstore(temp_set, temp_set, *rated_sets)
 
-            item_ids.each do |id|
-              Recommendable.redis.eval(predict_for_lua('(liked_by_count > 0) and (((similarity_sum/liked_by_count) + (1.9208/liked_by_count) - 1.96 * math.sqrt((((similarity_sum/liked_by_count) * (1-(similarity_sum/liked_by_count)) + 0.9604)) / liked_by_count)) / (1+3.8416 / liked_by_count)) or 0'),
-                [ temp_set, recommended_4_set ],
-                [ user_id, id,
+            temp_sub_set = Recommendable::Helpers::RedisKeyMapper.temp_sub_set_for(Recommendable.config.user_class, user_id)
+            scan_slice(temp_set, temp_sub_set, count: 10) do
+              Recommendable.redis.eval(predict_multi_for_lua('(liked_by_count > 0) and (((similarity_sum/liked_by_count) + (1.9208/liked_by_count) - 1.96 * math.sqrt((((similarity_sum/liked_by_count) * (1-(similarity_sum/liked_by_count)) + 0.9604)) / liked_by_count)) / (1+3.8416 / liked_by_count)) or 0'),
+                [ recommended_4_set ],
+                [ user_id, temp_sub_set,
                   Recommendable.config.redis_namespace,
                   Recommendable.config.user_class.to_s.tableize,
                   klass.to_s.tableize ])
