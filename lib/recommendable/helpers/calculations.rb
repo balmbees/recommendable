@@ -436,7 +436,7 @@ module Recommendable
             item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
 
             item_ids.each do |id|
-              Recommendable.redis.eval(predict_multi_for_lua('(liked_by_count > 0) and (((similarity_sum/liked_by_count) + (1.9208/liked_by_count) - 1.96 * math.sqrt((((similarity_sum/liked_by_count) * (1-(similarity_sum/liked_by_count)) + 0.9604)) / liked_by_count)) / (1+3.8416 / liked_by_count)) or 0'),
+              Recommendable.redis.eval(predict_for_lua('(liked_by_count > 0) and (((similarity_sum/liked_by_count) + (1.9208/liked_by_count) - 1.96 * math.sqrt((((similarity_sum/liked_by_count) * (1-(similarity_sum/liked_by_count)) + 0.9604)) / liked_by_count)) / (1+3.8416 / liked_by_count)) or 0'),
                 [ recommended_4_set ],
                 [ user_id, id,
                   Recommendable.config.redis_namespace,
