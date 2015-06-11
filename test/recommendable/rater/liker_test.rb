@@ -58,13 +58,13 @@ class LikerTest < Minitest::Test
   end
 
   def test_that_likes_returns_liked_records
-    refute_includes @user.likes, @movie
+    refute_includes @user.like_items, @movie
     @user.like(@movie)
-    assert_includes @user.likes, @movie
+    assert_includes @user.like_items, @movie
 
-    refute_includes @user.likes, @doc
+    refute_includes @user.like_items, @doc
     @user.like(@doc)
-    assert_includes @user.likes, @doc
+    assert_includes @user.like_items, @doc
   end
 
   def test_that_dynamic_liked_finder_only_returns_relevant_records

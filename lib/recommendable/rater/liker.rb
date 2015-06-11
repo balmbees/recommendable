@@ -45,7 +45,7 @@ module Recommendable
       # Retrieve an array of objects the user has liked
       #
       # @return [Array] an array of records
-      def likes
+      def like_items
         Recommendable.config.ratable_classes.map { |klass| liked_for(klass) }.flatten
       end
 
