@@ -268,7 +268,7 @@ module Recommendable
               Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
               Recommendable::Helpers::RedisKeyMapper.disliked_set_for(klass, user_id),
               Recommendable::Helpers::RedisKeyMapper.hidden_set_for(klass, user_id),
-              Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(klass, user_id)
+              Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(klass, user_id),
             ]
             temp_set = Recommendable::Helpers::RedisKeyMapper.temp_set_for(klass, user_id)
             similarity_set  = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
@@ -349,7 +349,10 @@ module Recommendable
           nearest_neighbors = Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count
           Recommendable.config.ratable_classes.each do |klass|
             rated_sets = [
-              Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id)
+              Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
+              Recommendable::Helpers::RedisKeyMapper.disliked_set_for(klass, user_id),
+              Recommendable::Helpers::RedisKeyMapper.hidden_set_for(klass, user_id),
+              Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(klass, user_id),
             ]
             temp_set = Recommendable::Helpers::RedisKeyMapper.temp_set_for(klass, user_id)
             similarity_set  = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
@@ -412,7 +415,10 @@ module Recommendable
           nearest_neighbors = Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count
           Recommendable.config.ratable_classes.each do |klass|
             rated_sets = [
-              Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id)
+              Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
+              Recommendable::Helpers::RedisKeyMapper.disliked_set_for(klass, user_id),
+              Recommendable::Helpers::RedisKeyMapper.hidden_set_for(klass, user_id),
+              Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(klass, user_id),
             ]
             temp_set = Recommendable::Helpers::RedisKeyMapper.temp_set_for(klass, user_id)
             similarity_set  = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
