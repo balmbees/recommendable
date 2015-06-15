@@ -207,6 +207,7 @@ module Recommendable
           temp_sub_set = Recommendable::Helpers::RedisKeyMapper.temp_sub_set_for(Recommendable.config.user_class, user_id)
           similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
           klasses = Recommendable.config.ratable_classes.map { |klass| klass.to_s.tableize }
+          Recommendable.redis.del similarity_set
           scan_slice(temp_set, temp_sub_set, count: 500) do
             Recommendable.redis.eval(similarity_between_multi_zadd_lua,
               [ user_id, temp_sub_set, similarity_set,
@@ -375,6 +376,8 @@ module Recommendable
             Recommendable.redis.sunionstore(temp_set, *sets_to_union)
             item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
 
+            Recommendable.redis.del(recommended_2_set)
+            Recommendable.redis.del(recommended_3_set)
             item_ids.each do |id|
               Recommendable.redis.eval(predict_for_lua('similarity_sum'),
                 [ recommended_2_set ],
@@ -435,6 +438,7 @@ module Recommendable
             Recommendable.redis.sunionstore(temp_set, *sets_to_union)
             item_ids = Recommendable.redis.sdiff(temp_set, *rated_sets)
 
+            Recommendable.redis.del(recommended_4_set)
             item_ids.each do |id|
               Recommendable.redis.eval(predict_for_lua('(liked_by_count > 0) and (((similarity_sum/liked_by_count) + (1.9208/liked_by_count) - 1.96 * math.sqrt((((similarity_sum/liked_by_count) * (1-(similarity_sum/liked_by_count)) + 0.9604)) / liked_by_count)) / (1+3.8416 / liked_by_count)) or 0'),
                 [ recommended_4_set ],
