@@ -207,7 +207,6 @@ module Recommendable
           temp_sub_set = Recommendable::Helpers::RedisKeyMapper.temp_sub_set_for(Recommendable.config.user_class, user_id)
           similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
           klasses = Recommendable.config.ratable_classes.map { |klass| klass.to_s.tableize }
-          Recommendable.redis.del similarity_set
           scan_slice(temp_set, temp_sub_set, count: 500) do
             Recommendable.redis.eval(similarity_between_multi_zadd_lua,
               [ user_id, temp_sub_set, similarity_set,
