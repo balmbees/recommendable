@@ -29,8 +29,7 @@ module Recommendable
         ids = Recommendable.redis.zrevrange(recommended_set, 0, -1, :with_scores => true)
         ids = ids.select { |id, score| score > 0 }.map { |pair| pair.first }
 
-        order = ids.map { |id| "`#{klass.table_name}`.`id` = %d DESC" }.join(', ')
-        order = klass.send(:sanitize_sql_for_assignment, [order, *ids])
+        order = "`#{klass.table_name}`.`id` DESC"
         Recommendable.query(klass, ids).order(order).limit(limit).offset(offset)
       end
 
