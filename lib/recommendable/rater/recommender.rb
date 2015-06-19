@@ -27,7 +27,7 @@ module Recommendable
         return Recommendable.query(klass, []) unless rated_anything? && Recommendable.redis.zcard(recommended_set) > 0
 
         ids = Recommendable.redis.zrevrange(recommended_set, offset, offset+limit-1, with_scores: true)
-        ids = ids.select { |id, score| score > 0 }.map { |pair| pair.first }
+        ids = ids.map { |pair| pair.first }  # allow minus score
 
         Recommendable.query(klass, ids).sort_by { |item| ids.index(item.id.to_s) }
       end
