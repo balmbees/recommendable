@@ -23,20 +23,19 @@ module Recommendable
       # @param [Fixnum] limit the number of recommendations to fetch (defaults to 10)
       # @return [Array] a list of things this person's gonna love
       def recommended_for(klass, limit = 10, offset = 0)
-        recommended_set = Recommendable::Helpers::RedisKeyMapper.recommended_set_for(klass, self.id)
+        recommended_set = Recommendable::Helpers::RedisKeyMapper.recommended_4_set_for(klass, self.id)
         return Recommendable.query(klass, []) unless rated_anything? && Recommendable.redis.zcard(recommended_set) > 0
 
-        ids = Recommendable.redis.zrevrange(recommended_set, 0, -1, :with_scores => true)
+        ids = Recommendable.redis.zrevrange(recommended_set, offset, offset+limit-1, with_scores: true)
         ids = ids.select { |id, score| score > 0 }.map { |pair| pair.first }
 
-        order = "`#{klass.table_name}`.`id` DESC"
-        Recommendable.query(klass, ids).order(order).limit(limit).offset(offset)
+        Recommendable.query(klass, ids).sort_by { |item| ids.index(item.id.to_s) }
       end
 
       # Removes an item from a user's set of recommendations
       # @private
       def unrecommend(obj)
-        Recommendable.redis.zrem(Recommendable::Helpers::RedisKeyMapper.recommended_set_for(obj.class, id), obj.id)
+        Recommendable.redis.zrem(Recommendable::Helpers::RedisKeyMapper.recommended_4_set_for(obj.class, id), obj.id)
         true
       end
 

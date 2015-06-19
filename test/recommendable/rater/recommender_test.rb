@@ -68,7 +68,7 @@ class RecommenderTest < Minitest::Test
       @user.hidden_book_ids,
       @user.bookmarked_movie_ids,
       @user.bookmarked_book_ids,
-      @user.recommended_books,
+      # @user.recommended_books,
       @user.similar_raters
     ]
 
