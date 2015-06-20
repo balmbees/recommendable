@@ -6,6 +6,7 @@ class DislikableTest < Minitest::Test
     @user = Factory(:user)
     @friend = Factory(:user)
     @movie = Factory(:movie)
+    Recommendable.set_shard_key(@user.id)
   end
 
   def test_disliked_by_returns_relevant_users
@@ -26,6 +27,9 @@ class DislikableTest < Minitest::Test
   end
 
   def teardown
-    Recommendable.redis.flushdb
+    Recommendable.set_shard_key(nil)
+    Recommendable.redis_arr.each do |redis|
+      redis.flushdb
+    end
   end
 end

@@ -27,6 +27,7 @@ class RatableTest < Minitest::Test
   end
 
   def test_rated_predicate_works
+    Recommendable.set_shard_key(0)
     refute @movie.rated?
     user = Factory(:user)
     user.like(@movie)
@@ -95,9 +96,9 @@ class RatableTest < Minitest::Test
     @user.like(@movie2)
     @user.dislike(@movie)
 
-    top = Movie.top(:count =>2, :offset => 1)
-    assert_equal top[0], @movie2
-    assert_equal top[1], @movie
+    top = Movie.top(count: 3)
+    assert_equal top[1], @movie2
+    assert_equal top[2], @movie
   end
 
   def test_removed_from_recommendable_upon_destruction
@@ -159,6 +160,9 @@ class RatableTest < Minitest::Test
   end
 
   def teardown
-    Recommendable.redis.flushdb
+    Recommendable.set_shard_key(nil)
+    Recommendable.redis_arr.each do |redis|
+      redis.flushdb
+    end
   end
 end

@@ -20,5 +20,8 @@ DatabaseCleaner.start
 
 MiniTest::Unit.after_tests do
   DatabaseCleaner.clean
-  Recommendable.redis.flushdb
+  Recommendable.set_shard_key(nil)
+  Recommendable.redis_arr.each do |redis|
+    redis.flushdb
+  end
 end

@@ -14,7 +14,19 @@ require 'recommendable/workers/torque_box'
 
 module Recommendable
   class << self
-    def redis() config.redis end
+    def redis
+      shard_key = RequestStore.store[:shard_key]
+      raise 'shard_key required in Recommendable' unless shard_key
+      config.redis(shard_key)
+    end
+
+    def set_shard_key(key)
+      RequestStore.store[:shard_key] = key
+    end
+
+    def redis_arr
+      config.redis_arr
+    end
 
     def query(klass, ids)
         Recommendable::Helpers::Queriers.send(Recommendable.config.orm, klass, ids)

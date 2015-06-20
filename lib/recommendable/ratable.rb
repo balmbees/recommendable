@@ -47,14 +47,17 @@ module Recommendable
           # @return [Array] the top items belonging to this class, sorted by score
           def self.top(options = {})
             if options.is_a?(Integer)
-              options = { :count => options}
-              warn "[DEPRECATION] Recommenable::Ratable.top now takes an options hash. Please call `.top(count: #{options[:count]})` instead of just `.top(#{options[:count]})`"
+              options = {count: options}
+              # warn "[DEPRECATION] Recommenable::Ratable.top now takes an options hash. Please call `.top(count: #{options[:count]})` instead of just `.top(#{options[:count]})`"
             end
-            options.reverse_merge!(:count => 1, :offset => 0)
+            options.reverse_merge!(count: 1)
             score_set = Recommendable::Helpers::RedisKeyMapper.score_set_for(self)
-            ids = Recommendable.redis.zrevrange(score_set, options[:offset], options[:offset] + options[:count] - 1)
+            ids = []
+            Recommendable.redis_arr.each do |redis|
+              ids += redis.zrevrange(score_set, 0, options[:count] - 1)
+            end
 
-            Recommendable.query(self, ids).sort_by { |item| ids.index(item.id.to_s) }
+            Recommendable.query(self, ids).sort_by { |item| ids.index(item.id.to_s) }.uniq.slice(0, options[:count])
           end
 
           # Returns the class that has been explicitly been made ratable, whether it is this
@@ -70,28 +73,31 @@ module Recommendable
           # Completely removes this item from redis. Called from a before_destroy hook.
           # @private
           def remove_from_recommendable!
-            sets  = [] # SREM needed
-            zsets = [] # ZREM needed
             keys  = [] # DEL  needed
-            # Remove this item from the score zset
-            zsets << Recommendable::Helpers::RedisKeyMapper.score_set_for(self.class)
 
             # Remove this item's liked_by/disliked_by sets
             keys << Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(self.class, id)
             keys << Recommendable::Helpers::RedisKeyMapper.disliked_by_set_for(self.class, id)
 
-            # Remove this item from any user's like/dislike/hidden/bookmark sets
-            %w[liked disliked hidden bookmarked].each do |action|
-              sets += Recommendable.redis.keys(Recommendable::Helpers::RedisKeyMapper.send("#{action}_set_for", self.class, '*'))
-            end
+            Recommendable.redis_arr.each do |redis|
+              sets  = [] # SREM needed
+              zsets = [] # ZREM needed
+              # Remove this item from the score zset
+              zsets << Recommendable::Helpers::RedisKeyMapper.score_set_for(self.class)
 
-            # Remove this item from any user's recommendation zset
-            zsets += Recommendable.redis.keys(Recommendable::Helpers::RedisKeyMapper.recommended_set_for(self.class, '*'))
+              # Remove this item from any user's like/dislike/hidden/bookmark sets
+              %w[liked disliked hidden bookmarked].each do |action|
+                sets += redis.keys(Recommendable::Helpers::RedisKeyMapper.send("#{action}_set_for", self.class, '*'))
+              end
 
-            Recommendable.redis.pipelined do |redis|
-              sets.each { |set| redis.srem(set, id) }
-              zsets.each { |zset| redis.zrem(zset, id) }
-              redis.del(*keys)
+              # Remove this item from any user's recommendation zset
+              zsets += redis.keys(Recommendable::Helpers::RedisKeyMapper.recommended_set_for(self.class, '*'))
+
+              redis.pipelined do |redis|
+                sets.each { |set| redis.srem(set, id) }
+                zsets.each { |zset| redis.zrem(zset, id) }
+                redis.del(*keys)
+              end
             end
           end
         end

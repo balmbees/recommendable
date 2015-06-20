@@ -10,6 +10,7 @@ module Recommendable
         raise(ArgumentError, 'Object has not been declared ratable.') unless obj.respond_to?(:recommendable?) && obj.recommendable?
         return if hides?(obj) || bookmarks?(obj)
 
+        Recommendable.set_shard_key(id)
         run_hook(:before_bookmark, obj)
         Recommendable.redis.sadd(Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(obj.class, id), obj.id)
         run_hook(:after_bookmark, obj)
@@ -22,6 +23,7 @@ module Recommendable
       # @param [Object] obj the object in question
       # @return true if the user has bookmarked obj, false if not
       def bookmarks?(obj)
+        Recommendable.set_shard_key(id)
         Recommendable.redis.sismember(Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(obj.class, id), obj.id)
       end
 
@@ -32,6 +34,7 @@ module Recommendable
       def unbookmark(obj)
         return unless bookmarks?(obj)
 
+        Recommendable.set_shard_key(id)
         run_hook(:before_unbookmark, obj)
         Recommendable.redis.srem(Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(obj.class, id), obj.id)
         run_hook(:after_unbookmark, obj)
@@ -70,6 +73,7 @@ module Recommendable
       # @return [Array] an array of IDs
       # @private
       def bookmarked_ids_for(klass)
+        Recommendable.set_shard_key(id)
         ids = Recommendable.redis.smembers(Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(klass, id))
         ids.map!(&:to_i) if [:active_record, :data_mapper, :sequel].include?(Recommendable.config.orm)
         ids
@@ -90,6 +94,7 @@ module Recommendable
       # @return [Fixnum] the number of bookmarks
       # @private
       def bookmarked_count_for(klass)
+        Recommendable.set_shard_key(id)
         Recommendable.redis.scard(Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(klass, id))
       end
 
@@ -113,6 +118,7 @@ module Recommendable
       # @private
       def bookmarked_ids_in_common_with(klass, user_id)
         user_id = user_id.id if user_id.is_a?(Recommendable.config.user_class)
+        Recommendable.set_shard_key(id)
         Recommendable.redis.sinter(Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(klass, id), Recommendable::Helpers::RedisKeyMapper.bookmarked_set_for(klass, user_id))
       end
     end

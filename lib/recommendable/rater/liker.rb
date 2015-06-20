@@ -11,6 +11,7 @@ module Recommendable
         raise(ArgumentError, 'Object has not been declared ratable.') unless obj.respond_to?(:recommendable?) && obj.recommendable?
         return if likes?(obj)
 
+        Recommendable.set_shard_key(id)
         run_hook(:before_like, obj)
         Recommendable.redis.sadd(Recommendable::Helpers::RedisKeyMapper.liked_set_for(obj.class, id), obj.id)
         Recommendable.redis.sadd(Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(obj.class, obj.id), id)
@@ -24,6 +25,7 @@ module Recommendable
       # @param [Object] obj the object in question
       # @return true if the user has liked obj, false if not
       def likes?(obj)
+        Recommendable.set_shard_key(id)
         Recommendable.redis.sismember(Recommendable::Helpers::RedisKeyMapper.liked_set_for(obj.class, id), obj.id)
       end
 
@@ -34,6 +36,7 @@ module Recommendable
       def unlike(obj)
         return unless likes?(obj)
 
+        Recommendable.set_shard_key(id)
         run_hook(:before_unlike, obj)
         Recommendable.redis.srem(Recommendable::Helpers::RedisKeyMapper.liked_set_for(obj.class, id), obj.id)
         Recommendable.redis.srem(Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(obj.class, obj.id), id)
@@ -73,6 +76,7 @@ module Recommendable
       # @return [Array] an array of IDs
       # @private
       def liked_ids_for(klass)
+        Recommendable.set_shard_key(id)
         ids = Recommendable.redis.smembers(Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, id))
         ids.map!(&:to_i) if [:active_record, :data_mapper, :sequel].include?(Recommendable.config.orm)
         ids
@@ -93,6 +97,7 @@ module Recommendable
       # @return [Fixnum] the number of likes
       # @private
       def liked_count_for(klass)
+        Recommendable.set_shard_key(id)
         Recommendable.redis.scard(Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, id))
       end
 
@@ -115,6 +120,7 @@ module Recommendable
       # @private
       def liked_ids_in_common_with(klass, user_id)
         user_id = user_id.id if user_id.is_a?(Recommendable.config.user_class)
+        Recommendable.set_shard_key(id)
         Recommendable.redis.sinter(Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, id), Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id))
       end
     end

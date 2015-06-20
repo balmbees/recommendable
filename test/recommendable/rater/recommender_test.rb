@@ -110,6 +110,9 @@ class RecommenderTest < Minitest::Test
   end
 
   def teardown
-    Recommendable.redis.flushdb
+    Recommendable.set_shard_key(nil)
+    Recommendable.redis_arr.each do |redis|
+      redis.flushdb
+    end
   end
 end

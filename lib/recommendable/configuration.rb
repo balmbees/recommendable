@@ -1,4 +1,5 @@
 require 'redis'
+require 'consistent_hashing'
 
 module Recommendable
   class Configuration
@@ -8,7 +9,8 @@ module Recommendable
     # Recommendable's connection to Redis.
     #
     # Default: localhost:6379/0
-    attr_accessor :redis
+    attr_accessor :redis_arr
+    attr_accessor :ring
 
     # A prefix for all keys Recommendable uses.
     #
@@ -48,13 +50,19 @@ module Recommendable
 
     # Default values
     def initialize
-      @redis                    = Redis.new
+      @redis_arr                = [Redis.new]
+      @ring = ConsistentHashing::Ring.new
+      @redis_arr.each { |redis| @ring << redis }
       @redis_namespace          = :recommendable
       @auto_enqueue             = true
       @ratable_classes          = []
       @nearest_neighbors        = nil
       @furthest_neihbors        = nil
       @recommendations_to_store = 100
+    end
+
+    def redis(key)
+      @ring.node_for(key)
     end
 
     def queue_name
@@ -70,6 +78,8 @@ module Recommendable
     def configure
       @config ||= Configuration.new
       yield @config
+      @config.ring = ConsistentHashing::Ring.new
+      @config.redis_arr.each { |redis| @config.ring << redis }
     end
 
     def config
