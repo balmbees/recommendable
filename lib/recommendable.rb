@@ -12,6 +12,8 @@ require 'recommendable/workers/resque'
 require 'recommendable/workers/delayed_job'
 require 'recommendable/workers/torque_box'
 
+require 'request_store'
+
 module Recommendable
   class << self
     def redis
