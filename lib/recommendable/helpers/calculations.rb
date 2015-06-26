@@ -15,7 +15,7 @@ module Recommendable
           user_id = user_id.to_s
           other_user_id = other_user_id.to_s
 
-          Recommendable.set_shard_key(user_id)
+          Recommendable.set_shard_key user_id
 
           similarity = liked_count = disliked_count = 0
           in_common = Recommendable.config.ratable_classes.each do |klass|
@@ -68,7 +68,7 @@ module Recommendable
           user_id = user_id.to_s # For comparison. Redis returns all set members as strings.
           similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
 
-          Recommendable.set_shard_key(user_id)
+          Recommendable.set_shard_key user_id
 
           # Only calculate similarities for users who have rated the items that
           # this user has rated
@@ -174,7 +174,7 @@ module Recommendable
         end
 
         def similarity_between(user_id, other_user_id)
-          Recommendable.set_shard_key(user_id)
+          Recommendable.set_shard_key user_id
           similarity_set  = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
           Recommendable.redis.eval(similarity_between_lua,
             [ user_id, other_user_id, similarity_set,
@@ -187,7 +187,7 @@ module Recommendable
           user_id = user_id.to_s # For comparison. Redis returns all set members as strings.
           similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
 
-          Recommendable.set_shard_key(user_id)
+          Recommendable.set_shard_key user_id
 
           # Only calculate similarities for users who have rated the items that
           # this user has rated
@@ -224,8 +224,8 @@ module Recommendable
 
           Recommendable.redis.del temp_set
 
-          if knn = Recommendable.config.nearest_neighbors
-            length = Recommendable.redis.zcard(similarity_set)
+          if knn = Recommendable.config.nearest_neighbors.to_i
+            length = Recommendable.redis.zcard(similarity_set).to_i
             kfn = Recommendable.config.furthest_neighbors || 0
 
             Recommendable.redis.zremrangebyrank(similarity_set, kfn, length - knn - 1)  if length > knn
@@ -268,9 +268,9 @@ module Recommendable
         def update_recommendations_for(user_id)
           user_id = user_id.to_s
 
-          Recommendable.set_shard_key(user_id)
+          Recommendable.set_shard_key user_id
 
-          nearest_neighbors = Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count
+          nearest_neighbors = Recommendable.config.nearest_neighbors.to_i || Recommendable.config.user_class.count
           Recommendable.config.ratable_classes.each do |klass|
             rated_sets = [
               Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
@@ -313,8 +313,8 @@ module Recommendable
 
             Recommendable.redis.del(temp_set)
 
-            if number_recommendations = Recommendable.config.recommendations_to_store
-              length = Recommendable.redis.zcard(recommended_set)
+            if number_recommendations = Recommendable.config.recommendations_to_store.to_i
+              length = Recommendable.redis.zcard(recommended_set).to_i
               Recommendable.redis.zremrangebyrank(recommended_set, 0, length - number_recommendations - 1) if length > number_recommendations
             end
           end
@@ -354,8 +354,8 @@ module Recommendable
         def update_other_recommendations_for(user_id, total_user_count)
           user_id = user_id.to_s
 
-          Recommendable.set_shard_key(user_id)
-          nearest_neighbors = Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count
+          Recommendable.set_shard_key user_id
+          nearest_neighbors = Recommendable.config.nearest_neighbors.to_i || Recommendable.config.user_class.count
           Recommendable.config.ratable_classes.each do |klass|
             rated_sets = [
               Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
@@ -407,10 +407,10 @@ module Recommendable
 
             Recommendable.redis.del(temp_set)
 
-            if number_recommendations = Recommendable.config.recommendations_to_store
-              length = Recommendable.redis.zcard(recommended_2_set)
+            if number_recommendations = Recommendable.config.recommendations_to_store.to_i
+              length = Recommendable.redis.zcard(recommended_2_set).to_i
               Recommendable.redis.zremrangebyrank(recommended_2_set, 0, length - number_recommendations - 1) if length > number_recommendations
-              length = Recommendable.redis.zcard(recommended_3_set)
+              length = Recommendable.redis.zcard(recommended_3_set).to_i
               Recommendable.redis.zremrangebyrank(recommended_3_set, 0, length - number_recommendations - 1) if length > number_recommendations
             end
           end
@@ -421,8 +421,8 @@ module Recommendable
         def update_4_recommendations_for(user_id)
           user_id = user_id.to_s
 
-          Recommendable.set_shard_key(user_id)
-          nearest_neighbors = Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count
+          Recommendable.set_shard_key user_id
+          nearest_neighbors = Recommendable.config.nearest_neighbors.to_i || Recommendable.config.user_class.count
           Recommendable.config.ratable_classes.each do |klass|
             rated_sets = [
               Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
@@ -466,8 +466,8 @@ module Recommendable
 
             Recommendable.redis.del(temp_set)
 
-            if number_recommendations = Recommendable.config.recommendations_to_store
-              length = Recommendable.redis.zcard(recommended_4_set)
+            if number_recommendations = Recommendable.config.recommendations_to_store.to_i
+              length = Recommendable.redis.zcard(recommended_4_set).to_i
               Recommendable.redis.zremrangebyrank(recommended_4_set, 0, length - number_recommendations - 1) if length > number_recommendations
             end
           end
@@ -489,7 +489,7 @@ module Recommendable
           user_id = user_id.to_s
           item_id = item_id.to_s
 
-          Recommendable.set_shard_key(user_id)
+          Recommendable.set_shard_key user_id
           liked_by_set = Recommendable::Helpers::RedisKeyMapper.liked_by_set_for(klass, item_id)
           disliked_by_set = Recommendable::Helpers::RedisKeyMapper.disliked_by_set_for(klass, item_id)
           similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
@@ -538,7 +538,7 @@ module Recommendable
         end
 
         def similarity_total_for(user_id, set)
-          Recommendable.set_shard_key(user_id)
+          Recommendable.set_shard_key user_id
           similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
 
           Recommendable.redis.eval(similarity_total_for_lua, keys: [set, similarity_set]).to_f
