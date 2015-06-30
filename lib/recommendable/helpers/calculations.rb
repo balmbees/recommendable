@@ -224,7 +224,8 @@ module Recommendable
 
           Recommendable.redis.del temp_set
 
-          if knn = Recommendable.config.nearest_neighbors.to_i
+          if Recommendable.config.nearest_neighbors
+            knn = Recommendable.config.nearest_neighbors.to_i
             length = Recommendable.redis.zcard(similarity_set).to_i
             kfn = Recommendable.config.furthest_neighbors || 0
 
@@ -270,7 +271,7 @@ module Recommendable
 
           Recommendable.set_shard_key user_id
 
-          nearest_neighbors = Recommendable.config.nearest_neighbors.to_i || Recommendable.config.user_class.count
+          nearest_neighbors = (Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count).to_i
           Recommendable.config.ratable_classes.each do |klass|
             rated_sets = [
               Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
@@ -313,7 +314,8 @@ module Recommendable
 
             Recommendable.redis.del(temp_set)
 
-            if number_recommendations = Recommendable.config.recommendations_to_store.to_i
+            if Recommendable.config.recommendations_to_store
+              number_recommendations = Recommendable.config.recommendations_to_store.to_i
               length = Recommendable.redis.zcard(recommended_set).to_i
               Recommendable.redis.zremrangebyrank(recommended_set, 0, length - number_recommendations - 1) if length > number_recommendations
             end
@@ -355,7 +357,7 @@ module Recommendable
           user_id = user_id.to_s
 
           Recommendable.set_shard_key user_id
-          nearest_neighbors = Recommendable.config.nearest_neighbors.to_i || Recommendable.config.user_class.count
+          nearest_neighbors = (Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count).to_i
           Recommendable.config.ratable_classes.each do |klass|
             rated_sets = [
               Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
@@ -407,7 +409,8 @@ module Recommendable
 
             Recommendable.redis.del(temp_set)
 
-            if number_recommendations = Recommendable.config.recommendations_to_store.to_i
+            if Recommendable.config.recommendations_to_store
+              number_recommendations = Recommendable.config.recommendations_to_store.to_i
               length = Recommendable.redis.zcard(recommended_2_set).to_i
               Recommendable.redis.zremrangebyrank(recommended_2_set, 0, length - number_recommendations - 1) if length > number_recommendations
               length = Recommendable.redis.zcard(recommended_3_set).to_i
@@ -422,7 +425,7 @@ module Recommendable
           user_id = user_id.to_s
 
           Recommendable.set_shard_key user_id
-          nearest_neighbors = Recommendable.config.nearest_neighbors.to_i || Recommendable.config.user_class.count
+          nearest_neighbors = (Recommendable.config.nearest_neighbors || Recommendable.config.user_class.count).to_i
           Recommendable.config.ratable_classes.each do |klass|
             rated_sets = [
               Recommendable::Helpers::RedisKeyMapper.liked_set_for(klass, user_id),
@@ -466,7 +469,8 @@ module Recommendable
 
             Recommendable.redis.del(temp_set)
 
-            if number_recommendations = Recommendable.config.recommendations_to_store.to_i
+            if Recommendable.config.recommendations_to_store
+              number_recommendations = Recommendable.config.recommendations_to_store.to_i
               length = Recommendable.redis.zcard(recommended_4_set).to_i
               Recommendable.redis.zremrangebyrank(recommended_4_set, 0, length - number_recommendations - 1) if length > number_recommendations
             end

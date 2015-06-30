@@ -52,7 +52,7 @@ module Recommendable
     def initialize
       @redis_arr                = [Redis.new]
       @ring = ConsistentHashing::Ring.new
-      @redis_arr.each { |redis| @ring << redis }
+      @redis_arr.count.times { |index| @ring << index }
       @redis_namespace          = :recommendable
       @auto_enqueue             = true
       @ratable_classes          = []
@@ -62,7 +62,7 @@ module Recommendable
     end
 
     def redis(key)
-      @ring.node_for(key)
+      @redis_arr[@ring.node_for(key)]
     end
 
     def queue_name
@@ -79,7 +79,8 @@ module Recommendable
       @config ||= Configuration.new
       yield @config
       @config.ring = ConsistentHashing::Ring.new
-      @config.redis_arr.each { |redis| @config.ring << redis }
+      # @config.redis_arr.each { |redis| @config.ring << redis }
+      @config.redis_arr.count.times { |index| @config.ring << index }
     end
 
     def config
