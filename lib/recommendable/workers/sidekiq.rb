@@ -8,7 +8,12 @@ module Recommendable
 
       def perform(user_id)
         Recommendable::Helpers::Calculations.update_similarities_for(user_id)
-        Recommendable::Helpers::Calculations.update_4_recommendations_for(user_id)
+        Recommendable::Helpers::Calculations.update_recommendations_for(user_id)
+        begin
+          Recommendable::Helpers::Calculations.update_4_recommendations_for(user_id)
+        rescue Redis::CommandError => e
+          logger.warn e
+        end
       end
     end
   end
