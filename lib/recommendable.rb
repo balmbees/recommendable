@@ -36,12 +36,12 @@ module Recommendable
         warn 'Your ORM is not currently supported. Please open an issue at https://github.com/davidcelis/recommendable'
     end
 
-    def enqueue(user_id)
+    def enqueue(user_id, options={})
       user_id = user_id.id if user_id.is_a?(Recommendable.config.user_class)
       user_id = user_id.to_s
 
       if defined?(::Sidekiq)
-        Recommendable::Workers::Sidekiq.perform_async(user_id)
+        Recommendable::Workers::Sidekiq.perform_async(user_id, options)
       elsif defined?(::Resque)
         Resque.enqueue(Recommendable::Workers::Resque, user_id)
       elsif defined?(::Delayed::Job)
