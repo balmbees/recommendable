@@ -344,6 +344,9 @@ module Recommendable
           similarity_sum = similarity_sum + similarity_total_for(liked_by_set, similarity_set)
           similarity_sum = similarity_sum - similarity_total_for(disliked_by_set, similarity_set)
 
+          -- for preventing sqrt(negative val.)
+          similarity_sum = (similarity_sum < 0) and 0.0 or similarity_sum
+
           local liked_by_count = redis.call('SCARD', liked_by_set)
           local disliked_by_count = redis.call('SCARD', disliked_by_set)
 

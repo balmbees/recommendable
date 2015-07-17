@@ -26,8 +26,7 @@ module Recommendable
         recommended_set = Recommendable::Helpers::RedisKeyMapper.recommended_4_set_for(klass, self.id)
         return Recommendable.query(klass, []) unless rated_anything? && Recommendable.redis.zcard(recommended_set) > 0
 
-        ids = Recommendable.redis.zrevrange(recommended_set, offset, offset+limit-1, with_scores: true)
-        ids = ids.map { |pair| pair.first }  # allow minus score
+        ids = Recommendable.redis.zrevrange(recommended_set, offset, offset+limit-1) # allow minus score
 
         Recommendable.query(klass, ids).sort_by { |item| ids.index(item.id.to_s) }
       end
