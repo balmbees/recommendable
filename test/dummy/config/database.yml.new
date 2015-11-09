@@ -1,0 +1,19 @@
+default: &default
+  adapter: postgresql
+  encoding: utf8
+  pool: 30
+
+development:
+  <<: *default
+  database: balmbees_development
+
+test:
+  <<: *default
+  database: balmbees_test
+
+production:
+  <<: *default
+  username: balmbees
+  password: balmbee!!
+  database: balmbees_production
+

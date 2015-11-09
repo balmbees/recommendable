@@ -1,0 +1,14 @@
+source 'https://rubygems.org/'
+gem 'rails', '~> 3.2.20'
+gem 'sqlite3', :platform => :ruby
+gem 'activerecord-jdbcsqlite3-adapter', :platforms => :jruby
+
+gem 'pry', group: :development
+gem 'consistent-hashing'
+gem 'request_store'
+gem 'recommendable', github: 'balmbees/recommendable', branch: 'evaluation'
+
+gem 'pg'
+gem 'test-unit', '~> 3.0'
+gem "redis"
+gem "hiredis"
