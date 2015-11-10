@@ -29,7 +29,7 @@ Recommendable.configure do |config|
   # number to improve Redis memory usage.
   #
   # Default: nil
-  config.nearest_neighbors = ENV["RECOMMENDABLE_NEAREST_NEIGHBORS"] || 10
+  config.nearest_neighbors = ENV["RECOMMENDABLE_NEAREST_NEIGHBORS"] || 1000
 
   # Like kNN, but also uses some number of most dissimilar users when
   # updating recommendations for a user. Because, hey, disagreements are
@@ -44,7 +44,7 @@ Recommendable.configure do |config|
   # number to improve Redis memory usage.
   #
   # Default: 100
-  config.recommendations_to_store = ENV["RECOMMENDABLE_RECOMMENDATIONS_TO_STORE"] || 35
+  config.recommendations_to_store = ENV["RECOMMENDABLE_RECOMMENDATIONS_TO_STORE"] || 100
 
   # config.orm = :active_record
 end
