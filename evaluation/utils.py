@@ -24,9 +24,9 @@ def get_progressbar(name, size):
 
     return pbar
 
-def make_train_test(x, y, test_size=0.4, random_state=0):
+def make_train_test(*arrays,  **options):
     from sklearn import cross_validation
-    return cross_validation.train_test_split(x, y, test_size=test_size, random_state=random_state)
+    return cross_validation.train_test_split(*arrays,  **options)
 
 def common_percentage(X, Y):
     from collections import Counter
