@@ -4,18 +4,29 @@ sudo apt-get update
 
 sudo apt-get install -y tree tmux git ctags zsh vim build-essential python-pip curl screen
 sudo apt-get install -y git-core curl zlib1g-dev build-essential libssl-dev libreadline-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev libxslt1-dev libcurl4-openssl-dev python-software-properties libffi-dev python-setuptools postgresql postgresql-contrib libpq-dev libqtwebkit-dev qt4-qmake nodejs
-sudo apt-get install build-essential autoconf libtool pkg-config python-opengl python-imaging python-pyrex python-pyside.qtopengl idle-python2.7 qt4-dev-tools qt4-designer libqtgui4 libqtcore4 libqt4-xml libqt4-test libqt4-script libqt4-network libqt4-dbus python-qt4 python-qt4-gl libgle3 python-dev
-sudo apt-get install python-numpy python-scipy python-matplotlib ipython ipython-notebook python-pandas python-sympy python-nose
-sudo apt-get install libblas-dev liblapack-dev libatlas-base-dev gfortran
+sudo apt-get -y install build-essential autoconf libtool pkg-config python-opengl python-imaging python-pyrex python-pyside.qtopengl idle-python2.7 qt4-dev-tools qt4-designer libqtgui4 libqtcore4 libqt4-xml libqt4-test libqt4-script libqt4-network libqt4-dbus python-qt4 python-qt4-gl libgle3 python-dev
+sudo apt-get -y install python-numpy python-scipy python-matplotlib ipython ipython-notebook python-pandas python-sympy python-nose
+sudo apt-get -y install libblas-dev liblapack-dev libatlas-base-dev gfortran
+sudo apt-get install -y libssl-dev libreadline-dev zlib1g-dev wget curl python-pip
 
 
+# python
 sudo easy_install green let
 sudo easy_install gevent
 
 sudo pip install scipy
 sudo pip install -U scikit-learn
+sudo pip install py4j
 
+# java
+sudo apt-get install software-properties-common
+sudo add-apt-repository ppa:webupd8team/java
+sudo apt-get update
+sudo apt-get install oracle-java7-installer
+
+# autoenv
 git clone git://github.com/kennethreitz/autoenv.git ~/.autoenv
+
 
 # oh-my-zsh
 sh -c "$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
