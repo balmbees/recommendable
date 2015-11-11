@@ -162,7 +162,7 @@ module Recommendable
           local similarity_set = KEYS[3]
 
           for i=1, #other_user_ids do
-            if user_id ~= other_user_ids[i] then
+            if user_id ~= other_user_ids[i] and not string.find(other_user_ids[i], "test_") and not string.find(other_user_ids[i], "train_") then
               local other_user_id = other_user_ids[i]
               redis.call('ZADD',
                 similarity_set,

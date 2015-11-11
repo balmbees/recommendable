@@ -1,5 +1,6 @@
 import redis
 import pandas as pd
+from subprocess import call
 import ml_metrics as metrics
 
 from utils import *
@@ -120,9 +121,10 @@ if __name__ == '__main__':
 
     save_df_to_csv(true_df)
 
-    #######################################
-    # Insert fake data for into redis
-    #######################################
+    ##############################################
+    # Insert train and test data for into redis
+    ##############################################
+    header('Insert fake data for into redis')
 
     TRAIN_K = 5
     true_df['x'] = true_df[CHANNEL['liked']].map(lambda x: x[:TRAIN_K])
@@ -144,3 +146,13 @@ if __name__ == '__main__':
             pbar.update(idx+1)
             make_user_into_redis(uid, Xs['train'][idx], 'liked', True)
         pbar.finish()
+
+    #######################################
+    # Evaluate train and test data
+    #######################################
+    heaer('Evaluate train and test data')
+
+    for mode in ['train', 'test']:
+        command = ["ruby", "dummy/update.rb"]
+        command.extend(uids[mode])
+        call(command)
