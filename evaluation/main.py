@@ -110,7 +110,7 @@ if __name__ == '__main__':
             (len(channels['liked']), len(channels['disliked']), len(channels['recommended'])))
 
     #uids = [query.split(':')[2] for query in channels['liked']]
-    uids = [query.split(':')[2] for query in channels['recommended']]
+    uids = [query.split(':')[2] for query in channels['recommended'] if 'train' not in query and 'test' not in query]
 
     true_df = make_dataset_from_uids(uids, CHANNEL['liked'])
     pred_df = make_dataset_from_uids(uids, CHANNEL['recommended'])
@@ -167,6 +167,10 @@ if __name__ == '__main__':
             batches = np.array_split(uids[mode], 100)
             pbar = get_progressbar("eval %s data" % mode, len(batches))
             for idx, batch in enumerate(batches):
+                if len(r.zrange("%s:%s:%s" % (BASE_QUERY, batch[-1], CHANNEL['recommended']), 0, -1)):
+                    print(" [*] Skip to make %s data" % mode)
+                    continue
+
                 pbar.update(idx+1)
                 command = ["ruby", "dummy/update.rb"]
                 command.extend(batch)
