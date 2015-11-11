@@ -32,6 +32,7 @@ config = Recommendable.config
 user = User.first
 
 ARGV.each do |user_id|
+  #start = Time.now
   Recommendable::Helpers::Calculations.update_similarities_for(user_id)
 
   similarity_set = Recommendable::Helpers::RedisKeyMapper.similarity_set_for(user_id)
@@ -43,4 +44,6 @@ ARGV.each do |user_id|
     recommended_4_set = Recommendable::Helpers::RedisKeyMapper.recommended_4_set_for(klass, user_id)
     Recommendable.redis.zunionstore recommended_4_set, ['1', recommended_4_set]
   end
+  #finish = Time.now
+  #puts finish - start
 end

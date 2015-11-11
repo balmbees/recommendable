@@ -6,10 +6,13 @@ import numpy as np
 with open('names.json') as f:
     name_dict = json.loads(f.read())
 
-def header(s, size=60):
-    print("\n"+"="*size)
-    print("  %s" % s)
-    print("="*size)
+def header(s, short=False, size=60):
+    if short:
+        print("  [*] %s" % s)
+    else:
+        print("\n"+"="*size)
+        print("  %s" % s)
+        print("="*size)
 
 def get_progressbar(name, size):
     from progressbar import ProgressBar, ETA, Percentage, Bar, SimpleProgress
@@ -37,13 +40,13 @@ def common_percentage(X, Y):
             #import ipdb;ipdb.set_trace()
         except:
             pass
-    return np.mean(scores)
+    return np.mean(scores) * 100
 
 def print_name(ids):
     names = []
     for id in ids:
         try:
-            names.append(name_dict[id])
+            names.append(name_dict[id].strip())
         except:
             pass
     print(",".join(names))

@@ -26,11 +26,12 @@ def get_ith_key(query, idx):
     except:
         pass
 
-def make_dataset_from_uids(uids, channel_names=CHANNEL['liked'], check_validity = False):
+def make_dataset_from_uids(uids, channel_names=CHANNEL['liked'], check_validity = False, quite=False):
     if type(channel_names) != list:
         channel_names = [channel_names]
 
-    header("Make dataset from %s (#%s)" % (channel_names, len(uids)))
+    if not quite:
+        header("Make dataset from %s (#%s)" % (channel_names, len(uids)))
 
     data = {}
     for channel_name in channel_names:
@@ -93,6 +94,11 @@ def make_user_into_redis(uid, channel_ids, channel_type='liked', force_delete=Tr
     for channel_id in channel_ids:
         r.sadd(query, channel_id)
 
+def make_x_y_len_y(true_df, train_k):
+    true_df['x'] = true_df[CHANNEL['liked']].map(lambda x: x[:train_k])
+    true_df['y'] = true_df[CHANNEL['liked']].map(lambda x: x[train_k:])
+    true_df['len_y'] = true_df[CHANNEL['liked']].map(lambda x: len(x[train_k:]))
+
 if __name__ == '__main__':
     #######################################
     # Get data from recommendable-redis
@@ -127,9 +133,7 @@ if __name__ == '__main__':
     header('Insert fake data for into redis')
 
     TRAIN_K = 5
-    true_df['x'] = true_df[CHANNEL['liked']].map(lambda x: x[:TRAIN_K])
-    true_df['y'] = true_df[CHANNEL['liked']].map(lambda x: x[TRAIN_K:])
-    true_df['len_y'] = true_df[CHANNEL['liked']].map(lambda x: len(x[TRAIN_K:]))
+    make_x_y_len_y(true_df, TRAIN_K)
 
     df = true_df[true_df['len_y'] > 0]
 
@@ -141,18 +145,57 @@ if __name__ == '__main__':
         uids[mode] = ["%s_%s" % (mode, uid) for uid in uids[mode]]
 
     for mode in ['train', 'test']:
-        pbar = get_progressbar("make user data for %s" % mode, len(uids[mode]))
+        if len(r.smembers("%s:%s:%s" % (BASE_QUERY, uids[mode][0], CHANNEL['liked']))):
+            print(" [*] Skip to make %s data" % mode)
+            continue
+
+        pbar = get_progressbar("make %s data" % mode, len(uids[mode]))
         for idx, uid in enumerate(uids[mode]):
             pbar.update(idx+1)
             make_user_into_redis(uid, Xs['train'][idx], 'liked', True)
         pbar.finish()
 
-    #######################################
-    # Evaluate train and test data
-    #######################################
-    heaer('Evaluate train and test data')
+    EVAL_MODE = False
+    if EVAL_MODE:
+        #######################################
+        # Evaluate train and test data
+        #######################################
 
-    for mode in ['train', 'test']:
-        command = ["ruby", "dummy/update.rb"]
-        command.extend(uids[mode])
-        call(command)
+        for mode in ['train', 'test']:
+            header('Evaluate recommendable for "%s" data' % mode)
+
+            batches = np.array_split(uids[mode], 100)
+            pbar = get_progressbar("eval %s data" % mode, len(batches))
+            for idx, batch in enumerate(batches):
+                pbar.update(idx+1)
+                command = ["ruby", "dummy/update.rb"]
+                command.extend(batch)
+                call(command)
+            pbar.finish()
+
+    ##############################################
+    # Check performance for train and test data
+    ##############################################
+
+    CHECK_COUNT = 4
+    for mode in ['train']:
+        batches = np.array_split(uids[mode], 100)
+        for idx, batch in enumerate(batches[:CHECK_COUNT]):
+            true_df = make_dataset_from_uids([uid.split('_')[1] for uid in batch], CHANNEL['liked'], quite=True)
+            pred_df = make_dataset_from_uids(batch, CHANNEL['recommended'], quite=True)
+
+            make_x_y_len_y(true_df, TRAIN_K)
+
+            assert sum(true_df.index != pred_df.index.map(lambda x: x.split('_')[1])) == 0, \
+                    "index of true_df and pred_df is not same" 
+
+            x, true, pred = true_df['x'].values, true_df['y'].values, pred_df[CHANNEL['recommended']].values
+            header("Recommendable : %s" %  metrics.mapk(true, pred), short=True)
+
+            TOP_K = 20
+            pred = pred_df[CHANNEL['recommended']].map(lambda x: x[:TOP_K]).values
+            header("Recommendable of top %s : %.6f (%.6f%%)" % \
+                    (TOP_K, metrics.mapk(true, pred), common_percentage(true, pred)), short=True)
+
+    save_df_to_csv(true_df)
+
