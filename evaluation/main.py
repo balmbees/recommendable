@@ -155,7 +155,7 @@ if __name__ == '__main__':
             make_user_into_redis(uid, Xs['train'][idx], 'liked', True)
         pbar.finish()
 
-    EVAL_MODE = False
+    EVAL_MODE = True
     if EVAL_MODE:
         #######################################
         # Evaluate train and test data
