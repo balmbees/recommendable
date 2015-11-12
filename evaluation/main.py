@@ -1,4 +1,5 @@
 import redis
+import random
 import pandas as pd
 from subprocess import call
 import ml_metrics as metrics
@@ -196,6 +197,12 @@ if __name__ == '__main__':
             pred = pred_df[CHANNEL['recommended']].map(lambda x: x[:TOP_K]).values
             header("Recommendable of top %s : %.6f (%.6f%%)" % \
                     (TOP_K, metrics.mapk(true, pred), common_percentage(true, pred)), short=True)
+
+            for x, t, p in random.sample(zip(x, true, pred),2):
+                print_name(x, "X  : ")
+                print_name(t, "Y  : ")
+                print_name(p, "Y_ : ")
+                print
 
     save_df_to_csv(true_df)
 

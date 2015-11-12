@@ -42,11 +42,11 @@ def common_percentage(X, Y):
             pass
     return np.mean(scores) * 100
 
-def print_name(ids):
+def print_name(ids, prefix=""):
     names = []
     for id in ids:
         try:
             names.append(name_dict[id].strip())
         except:
             pass
-    print(",".join(names))
+    print(prefix + ",".join(names))
