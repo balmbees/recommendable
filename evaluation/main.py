@@ -6,7 +6,8 @@ import ml_metrics as metrics
 
 from utils import *
 
-r = redis.StrictRedis(host='localhost', port=6379, db=0)
+#r = redis.StrictRedis(host='localhost', port=6379, db=0)
+r = redis.StrictRedis(host='208.43.77.196', port=6379, db=0)
 
 TOP_K = 20
 
