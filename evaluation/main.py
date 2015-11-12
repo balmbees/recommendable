@@ -103,14 +103,19 @@ def make_x_y_len_y(true_df, train_k):
 def get_uids_from_channels(channels, channel_name):
     return [query.split(':')[2] for query in channels[channel_name] if 'train' not in query and 'test' not in query]
 
-def get_channel_ids_from_df(df, channel_name):
-    channel_ids = []
-    pbar = get_progressbar("get channel_id", len(df))
-    for pidx, (index, row) in enumerate(df.iterrows()):
-        pbar.update(pidx + 1)
-        channel_ids.append(row[channel_name])
-    pbar.finish()
+def get_channel_ids_from_df(df, channel_names):
+    if type(channel_names) != list:
+        channel_names = [channel_names]
 
+    channel_ids = []
+    for channel_name in channel_names:
+        pbar = get_progressbar('channel_id in "%s"' % channel_name, len(df))
+        for pidx, (index, row) in enumerate(df.iterrows()):
+            pbar.update(pidx + 1)
+            channel_ids.extend(row[channel_name])
+        pbar.finish()
+
+    header("# of unique channel_id in %s : %s" % (channel_names, len(channel_ids)))
     return list(set(channel_ids))
 
 if __name__ == '__main__':
@@ -130,7 +135,6 @@ if __name__ == '__main__':
     pred_df = make_dataset_from_uids(uids, CHANNEL['recommended'])
 
     channel_ids = get_channel_ids_from_df(true_df, CHANNEL['liked'])
-    header("# of unique channel_ids : %s" % len(channel_ids))
 
     assert sum(true_df.index != pred_df.index) == 0, "index of true_df and pred_df is not same" 
 
