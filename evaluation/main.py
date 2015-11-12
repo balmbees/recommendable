@@ -100,6 +100,19 @@ def make_x_y_len_y(true_df, train_k):
     true_df['y'] = true_df[CHANNEL['liked']].map(lambda x: x[train_k:])
     true_df['len_y'] = true_df[CHANNEL['liked']].map(lambda x: len(x[train_k:]))
 
+def get_uids_from_channels(channels, channel_name):
+    return [query.split(':')[2] for query in channels[channel_name] if 'train' not in query and 'test' not in query]
+
+def get_channel_ids_from_df(df, channel_name):
+    channel_ids = []
+    pbar = get_progressbar("get channel_id", len(df))
+    for pidx, (index, row) in enumerate(df.iterrows()):
+        pbar.update(pidx + 1)
+        channel_ids.append(row[channel_name])
+    pbar.finish()
+
+    return list(set(channel_ids))
+
 if __name__ == '__main__':
     #######################################
     # Get data from recommendable-redis
@@ -111,10 +124,13 @@ if __name__ == '__main__':
             (len(channels['liked']), len(channels['disliked']), len(channels['recommended'])))
 
     #uids = [query.split(':')[2] for query in channels['liked']]
-    uids = [query.split(':')[2] for query in channels['recommended'] if 'train' not in query and 'test' not in query]
+    uids = get_uids_from_channels(channels, 'recommended')
 
     true_df = make_dataset_from_uids(uids, CHANNEL['liked'])
     pred_df = make_dataset_from_uids(uids, CHANNEL['recommended'])
+
+    channel_ids = get_channel_ids_from_df(true_df, CHANNEL['liked'])
+    header("# of unique channel_ids : %s" % len(channel_ids))
 
     assert sum(true_df.index != pred_df.index) == 0, "index of true_df and pred_df is not same" 
 

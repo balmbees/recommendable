@@ -25,7 +25,6 @@ if __name__ == "__main__":
     header("# of liked, disliked, recommended : %s, %s, %s" % \
             (len(channels['liked']), len(channels['disliked']), len(channels['recommended'])))
 
-    uids = [query.split(':')[2] for query in channels['recommended'] if 'train' not in query and 'test' not in query]
 
     df = make_dataset_from_uids(uids, channel_names=CHANNEL['liked'], check_validity = False, quite=False)
 
