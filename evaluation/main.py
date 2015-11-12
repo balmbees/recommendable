@@ -16,7 +16,7 @@ BASE_QUERY = '%s:%s' % (BASE_KEY, USER_KEY)
 
 CHANNEL = {}
 CHANNEL['liked'] = 'liked_channels'
-CHANNEL['disliked'] = 'liked_channels'
+CHANNEL['disliked'] = 'disliked_channels'
 CHANNEL['recommended'] = 'recommended_4_channels'
 
 TOTAL_DATA_FILE = 'total.csv'
