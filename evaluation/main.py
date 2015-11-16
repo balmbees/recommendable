@@ -1,6 +1,7 @@
 import redis
 import random
 import pandas as pd
+import numpy as np
 from subprocess import call
 import ml_metrics as metrics
 
@@ -17,7 +18,7 @@ BASE_QUERY = '%s:%s' % (BASE_KEY, USER_KEY)
 CHANNEL = {}
 CHANNEL['liked'] = 'liked_channels'
 CHANNEL['disliked'] = 'disliked_channels'
-CHANNEL['recommended'] = 'recommended_4_channels'
+CHANNEL['recommended'] = 'recommended_5_channels'
 
 TOTAL_DATA_FILE = 'total.csv'
 
@@ -74,7 +75,8 @@ def get_channels():
     channels = {}
     channels['liked'] = r.keys('%s:*:%s' % (BASE_QUERY, CHANNEL['liked']))
     channels['disliked'] = r.keys('%s:*:%s' % (BASE_QUERY, CHANNEL['disliked']))
-    channels['recommended'] = r.keys('%s:*:%s' % (BASE_QUERY, CHANNEL['recommended']))
+    #channels['recommended'] = r.keys('%s:*:%s' % (BASE_QUERY, CHANNEL['recommended']))
+    channels['recommended'] = r.keys('%s:*:%s' % (BASE_QUERY, 'recommended_4_channels'))
 
     for name in channels:
         channels[name].sort()
@@ -176,7 +178,7 @@ if __name__ == '__main__':
             make_user_into_redis(uid, Xs['train'][idx], 'liked', True)
         pbar.finish()
 
-    EVAL_MODE = True
+    EVAL_MODE = False
     if EVAL_MODE:
         #######################################
         # Evaluate train and test data
@@ -202,7 +204,9 @@ if __name__ == '__main__':
     # Check performance for train and test data
     ##############################################
 
-    CHECK_COUNT = 4
+    total_pred = []
+    PRINT_MODE = False
+    CHECK_COUNT = -1
     for mode in ['train']:
         batches = np.array_split(uids[mode], 100)
         for idx, batch in enumerate(batches[:CHECK_COUNT]):
@@ -215,18 +219,21 @@ if __name__ == '__main__':
                     "index of true_df and pred_df is not same" 
 
             x, true, pred = true_df['x'].values, true_df['y'].values, pred_df[CHANNEL['recommended']].values
-            header("Recommendable : %s" %  metrics.mapk(true, pred), short=True)
+            mapk = metrics.mapk(true, pred)
+            total_pred.append(mapk)
+            header("Recommendable : %s, total : %.6f" %  (metrics.mapk(true, pred), np.mean(total_pred)), short=True)
 
-            TOP_K = 20
-            pred = pred_df[CHANNEL['recommended']].map(lambda x: x[:TOP_K]).values
-            header("Recommendable of top %s : %.6f (%.6f%%)" % \
-                    (TOP_K, metrics.mapk(true, pred), common_percentage(true, pred)), short=True)
+            #TOP_K = 20
+            #pred = pred_df[CHANNEL['recommended']].map(lambda x: x[:TOP_K]).values
+            #header("Recommendable of top %s : %.6f, total : %.6f (%.6f%%)" % \
+            #        (TOP_K, metrics.mapk(true, pred), common_percentage(true, pred)), short=True)
 
-            for x, t, p in random.sample(zip(x, true, pred),2):
-                print_name(x, "X  : ")
-                print_name(t, "Y  : ")
-                print_name(p, "Y_ : ")
-                print
+            if PRINT_MODE:
+                for x, t, p in random.sample(zip(x, true, pred),2):
+                    print_name(x, "X  : ")
+                    print_name(t, "Y  : ")
+                    print_name(p, "Y_ : ")
+                    print
 
     save_df_to_csv(true_df)
 

@@ -49,4 +49,5 @@ def print_name(ids, prefix=""):
             names.append(name_dict[id].strip())
         except:
             pass
-    print(prefix + ",".join(names))
+    print(prefix + ",".join([name.encode('utf-8','ignore') for name in names]))
+    #print(",".join(names.encode('utf-8','ignore')))
