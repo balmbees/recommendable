@@ -9,8 +9,8 @@ gem 'activerecord-jdbcsqlite3-adapter', :platforms => :jruby
 gem 'pry', group: :development
 gem 'consistent-hashing'
 gem 'request_store'
-#gem 'recommendable', path: '/Users/carpedm20/git/recommendable', branch: 'evaluation'
-gem 'recommendable', path: '/root/git/recommendable', branch: 'evaluation'
+gem 'recommendable', path: '/Users/carpedm20/git/recommendable', branch: 'evaluation'
+#gem 'recommendable', path: '/root/git/recommendable', branch: 'evaluation'
 
 gem 'pg'
 gem 'test-unit', '~> 3.0'
