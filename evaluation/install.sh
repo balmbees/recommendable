@@ -7,7 +7,7 @@ sudo apt-get install -y git-core curl zlib1g-dev build-essential libssl-dev libr
 sudo apt-get -y install build-essential autoconf libtool pkg-config python-opengl python-imaging python-pyrex python-pyside.qtopengl idle-python2.7 qt4-dev-tools qt4-designer libqtgui4 libqtcore4 libqt4-xml libqt4-test libqt4-script libqt4-network libqt4-dbus python-qt4 python-qt4-gl libgle3 python-dev
 sudo apt-get -y install python-numpy python-scipy python-matplotlib ipython ipython-notebook python-pandas python-sympy python-nose
 sudo apt-get -y install libblas-dev liblapack-dev libatlas-base-dev gfortran
-sudo apt-get install -y libssl-dev libreadline-dev zlib1g-dev wget curl python-pip
+sudo apt-get install -y libssl-dev libreadline-dev zlib1g-dev wget curl python-pip python-dev
 
 
 # python
